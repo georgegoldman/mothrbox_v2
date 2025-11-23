@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  # Walrus Storage Server (Backend)
+  mothrbox-server:
+    build:
+      context: ./mothrbox_ts
+      dockerfile: Dockerfile
+    container_name: mothrbox-server
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./mothrbox_ts/.env
+    environment:
+      - PORT=8000
+    networks:
+      - mothrbox-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    labels:
+      - "com.mothrbox.service=server"
+      - "com.mothrbox.description=Walrus storage backend"
+
+  # Encryption CLI (Frontend)
+  mothrbox-cli:
+    build:
+      context: ./mothrbox_rs
+      dockerfile: Dockerfile
+    container_name: mothrbox-cli
+    volumes:
+      - ./data:/data
+    networks:
+      - mothrbox-network
+    environment:
+      - WALRUS_URL=http://mothrbox-server:8000
+    depends_on:
+      mothrbox-server:
+        condition: service_healthy
+    stdin_open: true
+    tty: true
+    command: ["help"]
+    labels:
+      - "com.mothrbox.service=cli"
+      - "com.mothrbox.description=Encryption CLI tool"
+    profiles:
+      - tools
+
+networks:
+  mothrbox-network:
+    driver: bridge
+    name: mothrbox-network
+
+volumes:
+  data:
+    driver: local
+    name: mothrbox-data

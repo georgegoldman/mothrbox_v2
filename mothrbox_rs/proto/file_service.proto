@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package neslabs.files;
+
+service WalrusService {
+  // Rust streams file chunks to Deno → Deno uploads to Walrus
+  rpc Upload(stream FileChunk) returns (UploadStatus);
+
+  // Rust requests a file → Deno reads from Walrus and streams chunks back
+  rpc Download(FileRequest) returns (stream FileChunk);
+}
+
+message FileChunk {
+  string file_name = 1; // send in first chunk for Upload; in Download Deno will fill this
+  bytes  data      = 2; // raw bytes for this chunk
+  int64  offset    = 3; // optional byte offset
+  bool   last      = 4; // true for final chunk
+}
+
+message UploadStatus {
+  bool   ok      = 1;
+  string message = 2;
+
+  // Walrus / Sui identifiers from writeFiles
+  string id      = 3; // quilt / file object id
+  string blobId  = 4; // Walrus blob ID
+}
+
+message FileRequest {
+  string blobId   = 1;  // identifier for read
+  string filename = 2;  // optional hint for local filename
+}

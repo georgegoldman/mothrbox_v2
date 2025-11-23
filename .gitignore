@@ -1,0 +1,50 @@
+# Environment variables
+.env
+mothrbox_ts/.env
+*.env
+!.env.example
+
+# Rust
+target/
+**/*.rs.bk
+*.pdb
+Cargo.lock
+
+# Deno
+.deno/
+node_modules/
+
+# Docker
+data/
+*.tar.gz
+
+# Keys and encrypted files
+*.key
+private.key
+public.key
+*.enc
+*.ecc
+
+# Temporary files
+.temp_*
+tmp/
+temp/
+
+# OS
+.DS_Store
+Thumbs.db
+*~
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test files
+test_*
+*_test.*
