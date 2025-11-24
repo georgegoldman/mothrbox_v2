@@ -46,6 +46,24 @@ export async function uploadToWalrus(
 }
 
 export async function readFromWalus(blobId: string): Promise<Uint8Array> {
-    const data: Uint8Array = await walrusClient.readBlob({blobId});
-    return data
+  const walrusBlob = await walrusClient.getBlob({blobId});
+
+  if (!walrusBlob) {
+    throw new Error(`No file returned for blob ID ${blobId}`)
+  }
+
+  // CORRECT: Use files() to get the decoded original content
+  // asFile() returns the encoded storage format (445KB with erasure coding)
+  // files() returns the original uploaded file(s)
+  const files = await walrusBlob.files();
+  
+  if (!files || files.length === 0) {
+    throw new Error(`No files in blob ${blobId}`);
+  }
+  
+  // Get the first file (you uploaded one file)
+  const file = files[0];
+  const bytes = await file.bytes();
+  
+  return bytes;
 }

@@ -167,3 +167,13 @@ impl ChaChaEncryption {
         Ok(plaintext)
     }
 }
+// Wrapper functions for CLI compatibility
+pub fn encrypt_file(input_path: &str, output_path: &str, password: &str) -> Result<(), String> {
+    ChaChaEncryption::encrypt_file(input_path, output_path, password)
+        .map_err(|e| e.to_string())
+}
+
+pub fn decrypt_file(input_path: &str, output_path: &str, password: &str) -> Result<(), String> {
+    ChaChaEncryption::decrypt_file(input_path, output_path, password)
+        .map_err(|e| e.to_string())
+}

@@ -3,18 +3,48 @@ name = "mothrbox_rs"
 version = "0.1.0"
 edition = "2021"
 
-[dependencies]
-# Your existing dependencies...
+# Binary configuration
+[[bin]]
+name = "mothrbox_rs"
+path = "src/main.rs"
 
-# Encryption dependencies
+
+
+[dependencies]
+# CLI framework
+clap = { version = "4.4", features = ["derive"] }
+
+# Encryption - ECC
 p256 = { version = "0.13", features = ["ecdh"] }
+
+# Encryption - AES
 aes-gcm = "0.10"
+aes = "0.8"
+
+# Encryption - ChaCha20
 chacha20poly1305 = "0.10"
+
+# Key derivation
 argon2 = "0.5"
 hkdf = "0.12"
+
+# Hashing
 sha2 = "0.10"
 hmac = "0.12"
-aes = "0.8"
+
+# Block cipher modes
 ctr = "0.9"
+
+# Random number generation
 rand = "0.8"
+
+# Encoding
 hex = "0.4"
+
+# JSON parsing (for Deno CLI communication)
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[dev-dependencies]
+# Testing
+tempfile = "3.8"

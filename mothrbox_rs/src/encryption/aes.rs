@@ -166,3 +166,13 @@ impl AESEncryption {
         Ok(plaintext)
     }
 }
+// Wrapper functions for CLI compatibility
+pub fn encrypt_file(input_path: &str, output_path: &str, password: &str) -> Result<(), String> {
+    AESEncryption::encrypt_file(input_path, output_path, password)
+        .map_err(|e| e.to_string())
+}
+
+pub fn decrypt_file(input_path: &str, output_path: &str, password: &str) -> Result<(), String> {
+    AESEncryption::decrypt_file(input_path, output_path, password)
+        .map_err(|e| e.to_string())
+}

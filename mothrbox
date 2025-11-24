@@ -173,7 +173,8 @@ run_cli() {
     fi
 
     docker run --rm \
-        --network host \
+        --dns 8.8.8.8 \
+        --dns 1.1.1.1 \
         -v "$PWD/data:/app/data" \
         --env-file "$ENV_FILE" \
         "${IMAGE_NAME}" \

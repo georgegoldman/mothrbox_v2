@@ -159,3 +159,58 @@ impl ECCEncryption {
         std::fs::read(filename)
     }
 }
+use std::fs;
+
+// File operation functions
+pub fn generate_keypair(private_key_path: &str, public_key_path: &str) -> Result<(), String> {
+    let (private_key, public_key) = ECCEncryption::generate_keypair();
+    
+    fs::write(private_key_path, &private_key)
+        .map_err(|e| format!("Failed to write private key: {}", e))?;
+    
+    let public_key_bytes = public_key.to_encoded_point(false);
+    fs::write(public_key_path, public_key_bytes.as_bytes())
+        .map_err(|e| format!("Failed to write public key: {}", e))?;
+    
+    Ok(())
+}
+
+pub fn encrypt_file(input_path: &str, output_path: &str, public_key_path: &str) -> Result<(), String> {
+    let plaintext = fs::read(input_path)
+        .map_err(|e| format!("Failed to read input file: {}", e))?;
+    
+    let public_key_bytes = fs::read(public_key_path)
+        .map_err(|e| format!("Failed to read public key: {}", e))?;
+    
+    let public_key = PublicKey::from_sec1_bytes(&public_key_bytes)
+        .map_err(|e| format!("Invalid public key: {}", e))?;
+    
+    let ciphertext = ECCEncryption::encrypt(&plaintext, &public_key)?;
+    
+    fs::write(output_path, ciphertext)
+        .map_err(|e| format!("Failed to write output file: {}", e))?;
+    
+    Ok(())
+}
+
+pub fn decrypt_file(input_path: &str, output_path: &str, private_key_path: &str) -> Result<(), String> {
+    let ciphertext = fs::read(input_path)
+        .map_err(|e| format!("Failed to read encrypted file: {}", e))?;
+    
+    let private_key_bytes = fs::read(private_key_path)
+        .map_err(|e| format!("Failed to read private key: {}", e))?;
+    
+    if private_key_bytes.len() != 32 {
+        return Err("Invalid private key length".to_string());
+    }
+    
+    let mut private_key = [0u8; 32];
+    private_key.copy_from_slice(&private_key_bytes);
+    
+    let plaintext = ECCEncryption::decrypt(&ciphertext, &private_key)?;
+    
+    fs::write(output_path, plaintext)
+        .map_err(|e| format!("Failed to write output file: {}", e))?;
+    
+    Ok(())
+}
