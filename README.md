@@ -633,7 +633,7 @@ chmod 600 ~/.ssh/id_rsa
 └────────────────────┬────────────────────────────────────┘
                      │
         ┌────────────┴────────────┐
-        │   Docker Container       │
+        │   Docker Container      │
         │   (Single Image)        │
         └────────────┬────────────┘
                      │
@@ -656,7 +656,7 @@ chmod 600 ~/.ssh/id_rsa
                         Sui Blockchain
                          (Metadata)
 ```
-```
+
 
 ### Communication Mechanism
 
