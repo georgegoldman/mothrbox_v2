@@ -15,13 +15,13 @@ MothrBox is a unified system with two integrated components that work seamlessly
 │                    MOTHRBOX                         │
 ├─────────────────────────────────────────────────────┤
 │                                                     │
-│  ┌──────────────────┐ bash ┌──────────────────┐   │
-│  │   Rust Engine    │ ◄──► │ Deno Walrus      │   │
-│  │  (Encryption)    │      │   Client         │   │
-│  │  mothrbox_rs     │      │  mothrbox_ts     │   │
-│  └──────────────────┘      └──────────────────┘   │
-│          │                          │              │
-│     File I/O                       RPC             │
+│  ┌──────────────────┐ bash   ┌──────────────────┐   │
+│  │   Rust Engine    │ ◄──►   │ Deno Walrus      │   │
+│  │  (Encryption)    │        │   Client         │   │
+│  │  mothrbox_rs     │        │  mothrbox_ts     │   │
+│  └──────────────────┘        └──────────────────┘   │
+│          │                            │             │
+│     File I/O                         RPC            │
 │                                                     │
 └─────────────────────────────────────────────────────┘
          │                          │
