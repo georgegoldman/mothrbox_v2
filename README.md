@@ -821,30 +821,6 @@ A: **Cannot be recovered.** Use a password manager. Consider writing critical pa
 **Q: How much does it cost?**
 A: Testnet is free. Mainnet requires SUI tokens for storage.
 
----
-
-## Project Structure
-
-```
-mothrbox_v2/
-├── Dockerfile                 # Single unified image
-├── docker-compose.yml         # Container orchestration
-├── mothrbox                   # Main command script
-├── mothrbox_entrypoint.sh    # Docker entrypoint
-├── data/                      # Your files (volume mount)
-├── mothrbox_rs/              # Rust encryption engine
-│   ├── Dockerfile
-│   └── src/
-│       ├── encryption/       # AES, ChaCha20, ECC
-│       ├── main.rs           # CLI entry point
-│       └── walrus.rs         # Deno subprocess calls
-└── mothrbox_ts/              # Deno Walrus client
-    ├── Dockerfile
-    ├── .env                  # Your configuration
-    └── src/
-        ├── walrus-client.ts  # Walrus SDK wrapper
-        └── walrus-cli.ts     # CLI interface (called by Rust)
-```
 
 ---
 
