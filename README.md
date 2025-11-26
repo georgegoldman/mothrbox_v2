@@ -640,12 +640,12 @@ chmod 600 ~/.ssh/id_rsa
         ┌────────────┴────────────┐
         │                         │
         ▼                         ▼
-┌──────────────┐ bash    ┌──────────────┐
-│ Rust Engine  │ subprocess│  Deno Client │
-│ (Encryption) │ ◄──────►│ (Walrus SDK) │
-│              │  JSON   │              │
-│  - AES/ECC   │  stdout │  - Walrus    │
-└──────┬───────┘         └───────┬───────┘
+┌──────────────┐ bash     ┌──────────────┐
+│ Rust Engine  │subprocess│  Deno Client │
+│ (Encryption) │ ◄──────► │ (Walrus SDK) │
+│              │  JSON    │              │
+│  - AES/ECC   │  stdout  │  - Walrus    │
+└──────┬───────┘          └──────┬───────┘
        │                         │
        │                         │
        ▼                         ▼
