@@ -1,0 +1,180 @@
+# MothrBox Quick Reference Card
+
+```
+╔════════════════════════════════════════════════════════════════════════════╗
+║                        MOTHRBOX COMMAND REFERENCE                          ║
+║              Encrypted Decentralized Storage System                        ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ SYSTEM COMMANDS                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ ./mothrbox start       │ Start MothrBox system                             │
+│ ./mothrbox stop        │ Stop MothrBox system                              │
+│ ./mothrbox restart     │ Restart MothrBox system                           │
+│ ./mothrbox status      │ Check if running                                  │
+│ ./mothrbox logs        │ View container logs                               │
+│ ./mothrbox rebuild     │ Rebuild Docker images                             │
+│ ./mothrbox test        │ Run Rust tests                                    │
+│ ./mothrbox clean       │ Remove all data & containers                      │
+│ ./mothrbox help        │ Show full help                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ AES-256-GCM (Default - Hardware Accelerated)                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Encrypt & Upload:                                                           │
+│   ./mothrbox encrypt <file> <password>                                      │
+│   Example: ./mothrbox encrypt secret.pdf "MyPass123"                        │
+│                                                                              │
+│ Download & Decrypt:                                                         │
+│   ./mothrbox decrypt <blob-id> <output-file> <password>                    │
+│   Example: ./mothrbox decrypt abc123... recovered.pdf "MyPass123"          │
+│                                                                              │
+│ ✅ Best for: General use, compliance, large files                           │
+│ ✅ Speed: Very Fast (Intel/AMD hardware acceleration)                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ CHACHA20-POLY1305 (Mobile & IoT Optimized)                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Encrypt & Upload:                                                           │
+│   ./mothrbox chacha-encrypt <file> <password>                               │
+│   Example: ./mothrbox chacha-encrypt video.mp4 "MobilePass"                │
+│                                                                              │
+│ Download & Decrypt:                                                         │
+│   ./mothrbox chacha-decrypt <blob-id> <output-file> <password>             │
+│   Example: ./mothrbox chacha-decrypt xyz789... video.mp4 "MobilePass"      │
+│                                                                              │
+│ ✅ Best for: ARM devices, phones, Raspberry Pi, no HW acceleration          │
+│ ✅ Speed: Fast (optimized for software)                                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ECC - P-256 (Public Key Cryptography - No Password Needed!)                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Generate Keys:                                                              │
+│   ./mothrbox keygen                                                         │
+│   → Creates: data/private.key + data/public.key                             │
+│                                                                              │
+│ Encrypt with Public Key:                                                    │
+│   ./mothrbox ecc-encrypt <file> <recipient-public-key>                      │
+│   Example: ./mothrbox ecc-encrypt doc.pdf data/bob_public.key              │
+│                                                                              │
+│ Decrypt with Private Key:                                                   │
+│   ./mothrbox ecc-decrypt <blob-id> <output-file> <private-key>             │
+│   Example: ./mothrbox ecc-decrypt def456... doc.pdf data/private.key       │
+│                                                                              │
+│ ✅ Best for: Multi-recipient sharing, no password exchange                  │
+│ ✅ Security: NIST P-256 (NSA Suite B approved)                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ALGORITHM COMPARISON                                                        │
+├──────────────────┬──────────────────┬──────────────────┬───────────────────┤
+│ Feature          │ AES-256-GCM      │ ChaCha20-Poly    │ ECC               │
+├──────────────────┼──────────────────┼──────────────────┼───────────────────┤
+│ Command          │ encrypt          │ chacha-encrypt   │ ecc-encrypt       │
+│ Password needed  │ ✅ Yes           │ ✅ Yes           │ ❌ No (keys)      │
+│ Hardware accel   │ ✅ x86/x64       │ ❌ No            │ ❌ No             │
+│ Mobile friendly  │ Good             │ ✅ Excellent     │ Good              │
+│ Multi-recipient  │ ❌ Re-encrypt    │ ❌ Re-encrypt    │ ✅ Easy           │
+│ Speed            │ Very Fast (HW)   │ Fast (SW)        │ Moderate          │
+│ Use case         │ General          │ Performance      │ Sharing           │
+└──────────────────┴──────────────────┴──────────────────┴───────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ COMMON WORKFLOWS                                                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Quick Encrypt/Decrypt (AES):                                               │
+│   ./mothrbox start                                                          │
+│   ./mothrbox encrypt secret.txt "MyPass123"                                 │
+│   # → Save Blob ID!                                                         │
+│   ./mothrbox decrypt <blob-id> recovered.txt "MyPass123"                   │
+│                                                                              │
+│ Mobile Backup (ChaCha20):                                                   │
+│   ./mothrbox start                                                          │
+│   ./mothrbox chacha-encrypt photos.zip "BackupPass"                         │
+│   # Later on mobile/ARM device:                                             │
+│   ./mothrbox chacha-decrypt <blob-id> photos.zip "BackupPass"              │
+│                                                                              │
+│ Secure Sharing (ECC):                                                       │
+│   ./mothrbox keygen  # Generate your keys                                   │
+│   ./mothrbox ecc-encrypt contract.pdf recipient_public.key                  │
+│   # Share blob-id publicly - only they can decrypt!                         │
+│   # Recipient:                                                              │
+│   ./mothrbox ecc-decrypt <blob-id> contract.pdf their_private.key          │
+│                                                                              │
+│ Batch Encrypt:                                                              │
+│   for file in *.pdf; do                                                     │
+│     ./mothrbox encrypt "$file" "BatchPass"                                  │
+│   done                                                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ADVANCED - DIRECT CLI ACCESS                                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Raw Rust CLI:                                                               │
+│   ./mothrbox cli <command> [args...]                                        │
+│                                                                              │
+│ Examples:                                                                   │
+│   ./mothrbox cli aes encrypt /data/file.txt /data/file.enc "pass"          │
+│   ./mothrbox cli chacha decrypt /data/file.enc /data/file.txt "pass"       │
+│   ./mothrbox cli ecc keygen /data/priv.key /data/pub.key                   │
+│                                                                              │
+│ Manual Walrus Upload/Download:                                             │
+│   docker exec mothrbox_system bash -c "                                     │
+│     deno run -A --env-file=mothrbox_ts/.env \                               │
+│     mothrbox_ts/src/walrus-cli.ts upload /app/data/file.enc"               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ SECURITY TIPS                                                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ ✅ Use strong passwords (20+ characters)                                    │
+│ ✅ Never share private keys (ECC)                                           │
+│ ✅ Store Blob IDs separately from passwords                                 │
+│ ✅ Use password manager (1Password, Bitwarden)                              │
+│ ✅ Delete local files after upload: shred -vfz -n 10 file.txt               │
+│ ✅ Test decrypt before deleting originals                                   │
+│ ⚠️  Password-based: AES, ChaCha20 (share password securely)                 │
+│ ⚠️  Key-based: ECC (share public key only, keep private key secret!)        │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ TROUBLESHOOTING                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Container not running:                                                      │
+│   ./mothrbox status                                                         │
+│   ./mothrbox start                                                          │
+│                                                                              │
+│ Upload failed:                                                              │
+│   cat mothrbox_ts/.env  # Check SUI_SECRET_KEY                              │
+│   Get testnet SUI: https://faucet.testnet.sui.io/                           │
+│                                                                              │
+│ Decrypt failed:                                                             │
+│   - Check Blob ID (exact match)                                             │
+│   - Check password (case-sensitive)                                         │
+│   - Check encryption method (aes vs chacha vs ecc)                          │
+│                                                                              │
+│ Permission error:                                                           │
+│   chmod +x mothrbox                                                         │
+│   sudo chown -R $USER:$USER data/                                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ FILE LOCATIONS                                                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ ./data/              │ All encrypted/decrypted files                        │
+│ ./data/private.key   │ Your ECC private key (keep secret!)                 │
+│ ./data/public.key    │ Your ECC public key (share freely)                  │
+│ mothrbox_ts/.env     │ Configuration (SUI_SECRET_KEY, etc.)                │
+│ ./mothrbox           │ Main CLI script                                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+╔════════════════════════════════════════════════════════════════════════════╗
+║ Need help? Run: ./mothrbox help                                           ║
+║ Full guide: CLI_USAGE_GUIDE.md                                             ║
+║ GitHub: https://github.com/georgegoldman/mothrbox_v2                       ║
+╚════════════════════════════════════════════════════════════════════════════╝
+```
