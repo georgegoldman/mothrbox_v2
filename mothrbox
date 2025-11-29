@@ -5,7 +5,7 @@
 
 set -e
 
-CONTAINER_NAME="mothrbox_system"
+CONTAINER_NAME="mothrbox-server"
 DATA_DIR="./data"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
