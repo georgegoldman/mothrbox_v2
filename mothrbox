@@ -62,7 +62,7 @@ case "$1" in
         print_info "📤 Uploading to Walrus..."
         RESULT=$(deno run -A --env-file="$ENV_FILE" "$DENO_CLI" upload "$ENC_FILE")
         
-        BLOB_ID=$(echo "$RESULT" | grep -oP '"blobId":\s*"\K[^"]+' || echo "")
+        BLOB_ID=$(echo "$RESULT" | jq -r '.blobId' 2>/dev/null || echo "")
         
         if [ -n "$BLOB_ID" ] && [ "$BLOB_ID" != "null" ]; then
             print_success "Encrypted and uploaded successfully!"
@@ -70,9 +70,12 @@ case "$1" in
             echo "📦 Encrypted Blob ID: $BLOB_ID"
             echo ""
             print_info "Save this Blob ID and password separately!"
-            rm -f "$ENC_FILE"
+            
+            # Cleanup encrypted file
+            rm -f "$DATA_DIR/${FILENAME}.enc"
         else
             print_error "Upload failed"
+            echo "$RESULT"
             exit 1
         fi
         ;;
@@ -261,6 +264,7 @@ case "$1" in
         echo "  ecc-encrypt <file> <public-key>     - Encrypt with ECC"
         echo "  ecc-decrypt <blob-id> <out> <key>   - Decrypt with ECC"
         echo "  status                              - Check system status"
+        echo "  rebuild                              - Check system status"
         echo ""
         ;;
 esac
