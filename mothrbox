@@ -7,7 +7,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DATA_DIR="$SCRIPT_DIR/data"
-RUST_BIN="$SCRIPT_DIR/mothrbox_rs/target/release/mothrbox_rs"
+RUST_BIN="$SCRIPT_DIR/mothrbox_rs/target/debug/mothrbox_rs"
 DENO_CLI="$SCRIPT_DIR/mothrbox_ts/src/walrus-cli.ts"
 ENV_FILE="$SCRIPT_DIR/mothrbox_ts/.env"
 
