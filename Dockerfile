@@ -9,7 +9,7 @@ WORKDIR /app
 RUN rustup toolchain install nightly && rustup default nightly
 
 # Copy Rust project files
-COPY mothrbox_rs/Cargo.toml mothrbox_rs/Cargo.lock ./mothrbox_rs/
+COPY mothrbox_rs/Cargo.toml ./mothrbox_rs/
 COPY mothrbox_rs/src ./mothrbox_rs/src
 
 WORKDIR /app/mothrbox_rs
