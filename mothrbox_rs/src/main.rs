@@ -80,7 +80,9 @@ enum ChachaCommands {
 #[derive(Subcommand)]
 enum EccCommands {
     /// Generate ECC key pair
-    Keygen,
+    Keygen {
+        dir: String,
+    },
     /// Encrypt a file with ECC public key
     Encrypt {
         input: String,
@@ -191,8 +193,9 @@ fn handle_chacha(action: ChachaCommands) -> Result<String, String> {
 
 fn handle_ecc(action: EccCommands) -> Result<String, String> {
     match action {
-        EccCommands::Keygen => {
-            ecc::generate_keypair("private.key", "public.key")?;
+        EccCommands::Keygen {dir} => {
+            
+            ecc::generate_keypair(format!("{dir}/private.key").as_str(), format!("{dir}/public.key").as_str())?;
             Ok("Generated: private.key, public.key".to_string())
         }
         EccCommands::Encrypt { input, output, public_key } => {

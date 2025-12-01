@@ -176,15 +176,30 @@ case "$1" in
         ;;
     
     keygen)
+        if [ -z "$2" ]; then
+            print_error "Usage: ./mothrbox keygen <output-folder>"
+            exit 1
+        fi
+
+        OUTPUT_DIR="$2"
+
+        mkdir -p "$OUTPUT_DIR"
+
         print_header
-        print_info "Generating ECC key pair..."
-        
-        "$RUST_BIN" ecc keygen "$DATA_DIR/private.key" "$DATA_DIR/public.key"
-        
-        print_success "Keys generated!"
-        echo "🔑 Private key: data/private.key"
-        echo "🔓 Public key: data/public.key"
+        print_info "Generating ECC key pair into: $OUTPUT_DIR"
+
+        # Call Rust with target folder
+        "$RUST_BIN" ecc keygen "$OUTPUT_DIR"
+
+        if [ -f "$OUTPUT_DIR/private.key" ] && [ -f "$OUTPUT_DIR/public.key" ]; then
+            print_success "Keys generated!"
+            echo "🔑 Private key:   $OUTPUT_DIR/private.key"
+            echo "🔓 Public key:    $OUTPUT_DIR/public.key"
+        else
+            print_error "Key generation failed!"
+        fi
         ;;
+
     
     ecc-encrypt)
         if [ -z "$2" ] || [ -z "$3" ]; then
@@ -252,6 +267,25 @@ case "$1" in
             print_error "Deno not installed"
         fi
         ;;
+
+    build)
+        print_header
+        print_info "Building Rust CLI (cargo build)..."
+
+        # Build Rust project in mothrbox_rs
+        (
+            cd "$SCRIPT_DIR/mothrbox_rs" && cargo build
+        )
+
+        if [ -f "$RUST_BIN" ]; then
+            print_success "Rust binary built successfully:"
+            echo "  → $RUST_BIN"
+        else
+            print_error "Build finished but binary not found at:"
+            echo "  → $RUST_BIN"
+            echo "Check if the binary name or target path changed"
+        fi
+        ;;
     
     help|--help|-h|*)
         print_header
@@ -265,6 +299,7 @@ case "$1" in
         echo "  ecc-decrypt <blob-id> <out> <key>   - Decrypt with ECC"
         echo "  status                              - Check system status"
         echo "  rebuild                              - Check system status"
+        echo "  build                             - Build Rust binary (cargo build)"
         echo ""
         ;;
 esac
