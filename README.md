@@ -639,7 +639,7 @@ chmod 600 ~/.ssh/id_rsa
 │ Rust Engine  │subprocess│  Deno Client │
 │ (Encryption) │ ◄──────► │ (Walrus SDK) │
 │              │  JSON    │              │
-│  - AES/ECC   │  stdout  │  - Walrus    │
+│AES/ECC/ChaCha│  stdout  │  - Walrus    │
 └──────┬───────┘          └──────┬───────┘
        │                         │
        │                         │
