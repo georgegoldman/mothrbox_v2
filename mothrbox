@@ -7,7 +7,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DATA_DIR="$SCRIPT_DIR/data"
-RUST_BIN="$SCRIPT_DIR/mothrbox_rs/target/release/mothrbox_rs"
+RUST_BIN="$SCRIPT_DIR/mothrbox_rs/target/debug/mothrbox_rs"
 DENO_CLI="$SCRIPT_DIR/mothrbox_ts/src/walrus-cli.ts"
 ENV_FILE="$SCRIPT_DIR/mothrbox_ts/.env"
 
@@ -62,7 +62,7 @@ case "$1" in
         print_info "📤 Uploading to Walrus..."
         RESULT=$(deno run -A --env-file="$ENV_FILE" "$DENO_CLI" upload "$ENC_FILE")
         
-        BLOB_ID=$(echo "$RESULT" | grep -oP '"blobId":\s*"\K[^"]+' || echo "")
+        BLOB_ID=$(echo "$RESULT" | jq -r '.blobId' 2>/dev/null || echo "")
         
         if [ -n "$BLOB_ID" ] && [ "$BLOB_ID" != "null" ]; then
             print_success "Encrypted and uploaded successfully!"
@@ -70,9 +70,12 @@ case "$1" in
             echo "📦 Encrypted Blob ID: $BLOB_ID"
             echo ""
             print_info "Save this Blob ID and password separately!"
-            rm -f "$ENC_FILE"
+            
+            # Cleanup encrypted file
+            rm -f "$DATA_DIR/${FILENAME}.enc"
         else
             print_error "Upload failed"
+            echo "$RESULT"
             exit 1
         fi
         ;;
@@ -173,15 +176,30 @@ case "$1" in
         ;;
     
     keygen)
+        if [ -z "$2" ]; then
+            print_error "Usage: ./mothrbox keygen <output-folder>"
+            exit 1
+        fi
+
+        OUTPUT_DIR="$2"
+
+        mkdir -p "$OUTPUT_DIR"
+
         print_header
-        print_info "Generating ECC key pair..."
-        
-        "$RUST_BIN" ecc keygen "$DATA_DIR/private.key" "$DATA_DIR/public.key"
-        
-        print_success "Keys generated!"
-        echo "🔑 Private key: data/private.key"
-        echo "🔓 Public key: data/public.key"
+        print_info "Generating ECC key pair into: $OUTPUT_DIR"
+
+        # Call Rust with target folder
+        "$RUST_BIN" ecc keygen "$OUTPUT_DIR"
+
+        if [ -f "$OUTPUT_DIR/private.key" ] && [ -f "$OUTPUT_DIR/public.key" ]; then
+            print_success "Keys generated!"
+            echo "🔑 Private key:   $OUTPUT_DIR/private.key"
+            echo "🔓 Public key:    $OUTPUT_DIR/public.key"
+        else
+            print_error "Key generation failed!"
+        fi
         ;;
+
     
     ecc-encrypt)
         if [ -z "$2" ] || [ -z "$3" ]; then
@@ -249,6 +267,25 @@ case "$1" in
             print_error "Deno not installed"
         fi
         ;;
+
+    build)
+        print_header
+        print_info "Building Rust CLI (cargo build)..."
+
+        # Build Rust project in mothrbox_rs
+        (
+            cd "$SCRIPT_DIR/mothrbox_rs" && cargo build
+        )
+
+        if [ -f "$RUST_BIN" ]; then
+            print_success "Rust binary built successfully:"
+            echo "  → $RUST_BIN"
+        else
+            print_error "Build finished but binary not found at:"
+            echo "  → $RUST_BIN"
+            echo "Check if the binary name or target path changed"
+        fi
+        ;;
     
     help|--help|-h|*)
         print_header
@@ -261,6 +298,8 @@ case "$1" in
         echo "  ecc-encrypt <file> <public-key>     - Encrypt with ECC"
         echo "  ecc-decrypt <blob-id> <out> <key>   - Decrypt with ECC"
         echo "  status                              - Check system status"
+        echo "  rebuild                              - Check system status"
+        echo "  build                             - Build Rust binary (cargo build)"
         echo ""
         ;;
 esac
