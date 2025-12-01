@@ -625,7 +625,7 @@ chmod 600 ~/.ssh/id_rsa
 
 ## System Architecture
 
-### Unified System Design
+### Mothrbox System Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────┐
