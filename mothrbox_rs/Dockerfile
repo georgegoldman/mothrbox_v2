@@ -1,27 +1,18 @@
-FROM rust:1.75-slim as builder
-
-RUN apt-get update && apt-get install -y \
-    pkg-config \
-    libssl-dev \
-    && rm -rf /var/lib/apt/lists/*
+# ========= 1) Build stage =========
+FROM rust:slim AS builder
 
 WORKDIR /app
 
-COPY Cargo.toml Cargo.lock* ./
+COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 
 RUN cargo build --release
 
-FROM debian:bookworm-slim
-
-RUN apt-get update && apt-get install -y \
-    libssl3 \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+# ========= 2) Runtime stage =========
+FROM rust:slim AS runtime
 
 WORKDIR /app
 
-COPY --from=builder /app/target/release/mothrbox_rs /usr/local/bin/cryptool
+COPY --from=builder /app/target/release/mothrbox_rs /usr/local/bin/mothrbox
 
-ENTRYPOINT ["cryptool"]
-CMD ["help"]
+ENTRYPOINT ["mothrbox"]
