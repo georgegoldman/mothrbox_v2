@@ -1,0 +1,9 @@
+MothrBox Hackathon Demonstration
+
+This file proves:
+✓ Military-grade encryption (AES-256-GCM)
+✓ Decentralized storage (Walrus Protocol)
+✓ Blockchain verification (Sui)
+✓ TEE architecture (Nautilus-compatible)
+
+Built for the future of secure storage!

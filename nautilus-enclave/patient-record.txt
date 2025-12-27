@@ -1,0 +1,8 @@
+CONFIDENTIAL MEDICAL RECORD
+============================
+Patient ID: 12345
+Name: John Doe
+Diagnosis: Confidential condition
+Date: 2024-12-07
+
+⚠️  HIPAA Protected Information
