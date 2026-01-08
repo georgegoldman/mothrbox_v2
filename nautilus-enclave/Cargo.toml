@@ -1,0 +1,19 @@
+[package]
+name = "mothrbox-nautilus"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+actix-web = "4.5"
+actix-rt = "2.9"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1", features = ["full"] }
+base64 = "0.22"
+sha2 = "0.10"
+uuid = { version = "1.0", features = ["v4"] }
+env_logger = "0.11"
+log = "0.4"
+
+# Reference the package name, but rename it for import
+mothrbox_crypto = { package = "mothrbox_rs", path = "../mothrbox_rs" }

@@ -1,0 +1,8 @@
+target
+.git
+.gitignore
+Dockerfile
+.dockerignore
+secret.pdf
+keys
+test.txt

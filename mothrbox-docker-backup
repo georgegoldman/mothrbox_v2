@@ -1,0 +1,516 @@
+#!/bin/bash
+
+# MothrBox CLI Wrapper
+# Unified interface for encrypted decentralized storage
+
+set -e
+
+CONTAINER_NAME="mothrbox-server"
+DATA_DIR="./data"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Helper functions
+print_info() { echo -e "${BLUE}ℹ${NC} $1"; }
+print_success() { echo -e "${GREEN}✅${NC} $1"; }
+print_error() { echo -e "${RED}❌${NC} $1"; }
+print_warning() { echo -e "${YELLOW}⚠${NC} $1"; }
+
+print_header() {
+    echo ""
+    echo "╔════════════════════════════════════════════════════════╗"
+    echo "║                      MOTHRBOX                          ║"
+    echo "║        Encrypted Decentralized Storage System         ║"
+    echo "╚════════════════════════════════════════════════════════╝"
+    echo ""
+}
+
+check_container() {
+    if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+        print_error "MothrBox container is not running"
+        echo "Start it with: ./mothrbox start"
+        exit 1
+    fi
+}
+
+# Ensure data directory exists
+mkdir -p "$DATA_DIR"
+
+# Main commands
+case "$1" in
+    start)
+        print_info "Starting MothrBox system..."
+        docker compose up -d
+        print_info "Waiting for server to be ready..."
+        sleep 3
+        if docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+            print_success "MothrBox server is running!"
+            print_success "Server URL: http://localhost:8000"
+        else
+            print_error "Failed to start MothrBox"
+            exit 1
+        fi
+        ;;
+    
+    stop)
+        print_info "Stopping MothrBox system..."
+        docker compose down
+        print_success "MothrBox stopped"
+        ;;
+    
+    restart)
+        print_info "Restarting MothrBox system..."
+        docker compose restart
+        print_success "MothrBox restarted"
+        ;;
+    
+    status)
+        if docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+            print_success "Container: Running"
+            print_success "Ready to encrypt/decrypt"
+        else
+            print_error "Container: Not running"
+            echo "Start with: ./mothrbox start"
+        fi
+        ;;
+    
+    logs)
+        docker compose logs -f
+        ;;
+    
+    test)
+        check_container
+        print_info "Running system tests..."
+        docker exec -it "$CONTAINER_NAME" bash -c "cd /app/mothrbox_rs && cargo test"
+        ;;
+    
+    rebuild)
+        print_info "Rebuilding MothrBox images..."
+        docker compose build --no-cache
+        print_success "Rebuild complete"
+        ;;
+    
+    clean)
+        print_warning "This will remove all containers, images, and data!"
+        read -p "Are you sure? (yes/no): " confirm
+        if [ "$confirm" = "yes" ]; then
+            docker compose down -v
+            docker rmi mothrbox_v2-mothrbox 2>/dev/null || true
+            print_success "Cleanup complete"
+        else
+            print_info "Cleanup cancelled"
+        fi
+        ;;
+    
+    # ==========================================
+    # AES-256-GCM COMMANDS
+    # ==========================================
+    
+    encrypt)
+        check_container
+        if [ -z "$2" ] || [ -z "$3" ]; then
+            print_error "Usage: ./mothrbox encrypt <file> <password>"
+            exit 1
+        fi
+        
+        FILE_PATH="$2"
+        PASSWORD="$3"
+        
+        if [ ! -f "$FILE_PATH" ]; then
+            print_error "File not found: $FILE_PATH"
+            exit 1
+        fi
+        
+        print_header
+        print_info "Encrypting and uploading with AES-256-GCM..."
+        
+        # Copy file to data directory
+        FILENAME=$(basename "$FILE_PATH")
+        cp "$FILE_PATH" "$DATA_DIR/$FILENAME"
+        
+        # Run encryption and upload
+        RESULT=$(docker exec "$CONTAINER_NAME" bash -c "
+            cd /app/mothrbox_rs && \
+            cargo run --quiet --release -- aes encrypt \"/app/data/$FILENAME\" \"/app/data/${FILENAME}.enc\" \"$PASSWORD\" && \
+            cd /app && \
+            deno run -A --env-file=mothrbox_ts/.env mothrbox_ts/src/walrus-cli.ts upload \"/app/data/${FILENAME}.enc\"
+        ")
+        
+        BLOB_ID=$(echo "$RESULT" | jq -r '.blobId' 2>/dev/null || echo "")
+        
+        if [ -n "$BLOB_ID" ] && [ "$BLOB_ID" != "null" ]; then
+            print_success "Encrypted and uploaded successfully!"
+            echo ""
+            echo "📦 Encrypted Blob ID: $BLOB_ID"
+            echo ""
+            print_info "Save this Blob ID and password separately!"
+            
+            # Cleanup encrypted file
+            rm -f "$DATA_DIR/${FILENAME}.enc"
+        else
+            print_error "Upload failed"
+            echo "$RESULT"
+            exit 1
+        fi
+        ;;
+    
+    decrypt)
+        check_container
+        if [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ]; then
+            print_error "Usage: ./mothrbox decrypt <blob-id> <output-file> <password>"
+            exit 1
+        fi
+        
+        BLOB_ID="$2"
+        OUTPUT_FILE="$3"
+        PASSWORD="$4"
+        
+        print_header
+        print_info "Downloading and decrypting with AES-256-GCM..."
+        
+        OUTPUT_FILENAME=$(basename "$OUTPUT_FILE")
+        
+        # Download from Walrus
+        print_info "Downloading from Walrus..."
+        docker exec "$CONTAINER_NAME" bash -c "
+            deno run -A --env-file=mothrbox_ts/.env mothrbox_ts/src/walrus-cli.ts download \"$BLOB_ID\" \"/app/data/${OUTPUT_FILENAME}.enc\"
+        " > /dev/null
+        
+        if [ ! -f "$DATA_DIR/${OUTPUT_FILENAME}.enc" ]; then
+            print_error "Download failed"
+            exit 1
+        fi
+        
+        FILE_SIZE=$(stat -f%z "$DATA_DIR/${OUTPUT_FILENAME}.enc" 2>/dev/null || stat -c%s "$DATA_DIR/${OUTPUT_FILENAME}.enc")
+        print_success "Downloaded $FILE_SIZE bytes"
+        
+        # Decrypt
+        docker exec "$CONTAINER_NAME" bash -c "
+            cd /app/mothrbox_rs && \
+            cargo run --quiet --release -- aes decrypt \"/app/data/${OUTPUT_FILENAME}.enc\" \"/app/data/$OUTPUT_FILENAME\" \"$PASSWORD\"
+        "
+        
+        if [ -f "$DATA_DIR/$OUTPUT_FILENAME" ]; then
+            print_success "Decrypted successfully"
+            print_success "Saved to: data/$OUTPUT_FILENAME"
+            
+            # Cleanup encrypted file
+            rm -f "$DATA_DIR/${OUTPUT_FILENAME}.enc"
+        else
+            print_error "Decryption failed"
+            exit 1
+        fi
+        ;;
+    
+    # ==========================================
+    # CHACHA20-POLY1305 COMMANDS
+    # ==========================================
+    
+    chacha-encrypt)
+        check_container
+        if [ -z "$2" ] || [ -z "$3" ]; then
+            print_error "Usage: ./mothrbox chacha-encrypt <file> <password>"
+            exit 1
+        fi
+        
+        FILE_PATH="$2"
+        PASSWORD="$3"
+        
+        if [ ! -f "$FILE_PATH" ]; then
+            print_error "File not found: $FILE_PATH"
+            exit 1
+        fi
+        
+        print_header
+        print_info "Encrypting and uploading with ChaCha20-Poly1305..."
+        
+        # Copy file to data directory
+        FILENAME=$(basename "$FILE_PATH")
+        cp "$FILE_PATH" "$DATA_DIR/$FILENAME"
+        
+        # Run encryption and upload
+        RESULT=$(docker exec "$CONTAINER_NAME" bash -c "
+            cd /app/mothrbox_rs && \
+            cargo run --quiet --release -- chacha encrypt \"/app/data/$FILENAME\" \"/app/data/${FILENAME}.enc\" \"$PASSWORD\" && \
+            cd /app && \
+            deno run -A --env-file=mothrbox_ts/.env mothrbox_ts/src/walrus-cli.ts upload \"/app/data/${FILENAME}.enc\"
+        ")
+        
+        BLOB_ID=$(echo "$RESULT" | jq -r '.blobId' 2>/dev/null || echo "")
+        
+        if [ -n "$BLOB_ID" ] && [ "$BLOB_ID" != "null" ]; then
+            print_success "Encrypted and uploaded successfully!"
+            echo ""
+            echo "📦 Encrypted Blob ID: $BLOB_ID"
+            echo ""
+            print_info "Save this Blob ID and password separately!"
+            
+            # Cleanup encrypted file
+            rm -f "$DATA_DIR/${FILENAME}.enc"
+        else
+            print_error "Upload failed"
+            echo "$RESULT"
+            exit 1
+        fi
+        ;;
+    
+    chacha-decrypt)
+        check_container
+        if [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ]; then
+            print_error "Usage: ./mothrbox chacha-decrypt <blob-id> <output-file> <password>"
+            exit 1
+        fi
+        
+        BLOB_ID="$2"
+        OUTPUT_FILE="$3"
+        PASSWORD="$4"
+        
+        print_header
+        print_info "Downloading and decrypting with ChaCha20-Poly1305..."
+        
+        OUTPUT_FILENAME=$(basename "$OUTPUT_FILE")
+        
+        # Download from Walrus
+        print_info "Downloading from Walrus..."
+        docker exec "$CONTAINER_NAME" bash -c "
+            deno run -A --env-file=mothrbox_ts/.env mothrbox_ts/src/walrus-cli.ts download \"$BLOB_ID\" \"/app/data/${OUTPUT_FILENAME}.enc\"
+        " > /dev/null
+        
+        if [ ! -f "$DATA_DIR/${OUTPUT_FILENAME}.enc" ]; then
+            print_error "Download failed"
+            exit 1
+        fi
+        
+        FILE_SIZE=$(stat -f%z "$DATA_DIR/${OUTPUT_FILENAME}.enc" 2>/dev/null || stat -c%s "$DATA_DIR/${OUTPUT_FILENAME}.enc")
+        print_success "Downloaded $FILE_SIZE bytes"
+        
+        # Decrypt
+        docker exec "$CONTAINER_NAME" bash -c "
+            cd /app/mothrbox_rs && \
+            cargo run --quiet --release -- chacha decrypt \"/app/data/${OUTPUT_FILENAME}.enc\" \"/app/data/$OUTPUT_FILENAME\" \"$PASSWORD\"
+        "
+        
+        if [ -f "$DATA_DIR/$OUTPUT_FILENAME" ]; then
+            print_success "Decrypted successfully"
+            print_success "Saved to: data/$OUTPUT_FILENAME"
+            
+            # Cleanup encrypted file
+            rm -f "$DATA_DIR/${OUTPUT_FILENAME}.enc"
+        else
+            print_error "Decryption failed"
+            exit 1
+        fi
+        ;;
+    
+    # ==========================================
+    # ECC (Elliptic Curve Cryptography) COMMANDS
+    # ==========================================
+    
+    keygen)
+        check_container
+        print_header
+        print_info "Generating ECC key pair (NIST P-256)..."
+        
+        docker exec "$CONTAINER_NAME" bash -c "
+            cd /app/mothrbox_rs && \
+            cargo run --quiet --release -- ecc keygen /app/data/private.key /app/data/public.key
+        "
+        
+        if [ -f "$DATA_DIR/private.key" ] && [ -f "$DATA_DIR/public.key" ]; then
+            print_success "Key pair generated successfully!"
+            echo ""
+            echo "🔑 Private key: data/private.key"
+            echo "🔓 Public key: data/public.key"
+            echo ""
+            print_warning "Keep your private key secure! Anyone with it can decrypt your files."
+            print_info "Share your public key with others so they can encrypt files for you."
+        else
+            print_error "Key generation failed"
+            exit 1
+        fi
+        ;;
+    
+    ecc-encrypt)
+        check_container
+        if [ -z "$2" ] || [ -z "$3" ]; then
+            print_error "Usage: ./mothrbox ecc-encrypt <file> <recipient-public-key>"
+            exit 1
+        fi
+        
+        FILE_PATH="$2"
+        PUBLIC_KEY="$3"
+        
+        if [ ! -f "$FILE_PATH" ]; then
+            print_error "File not found: $FILE_PATH"
+            exit 1
+        fi
+        
+        if [ ! -f "$PUBLIC_KEY" ]; then
+            print_error "Public key not found: $PUBLIC_KEY"
+            exit 1
+        fi
+        
+        print_header
+        print_info "Encrypting and uploading with ECC (no password needed)..."
+        
+        # Copy file and public key to data directory
+        FILENAME=$(basename "$FILE_PATH")
+        PUBKEY_FILENAME=$(basename "$PUBLIC_KEY")
+        cp "$FILE_PATH" "$DATA_DIR/$FILENAME"
+        cp "$PUBLIC_KEY" "$DATA_DIR/$PUBKEY_FILENAME"
+        
+        # Run encryption and upload
+        RESULT=$(docker exec "$CONTAINER_NAME" bash -c "
+            cd /app/mothrbox_rs && \
+            cargo run --quiet --release -- ecc encrypt \"/app/data/$FILENAME\" \"/app/data/${FILENAME}.enc\" \"/app/data/$PUBKEY_FILENAME\" && \
+            cd /app && \
+            deno run -A --env-file=mothrbox_ts/.env mothrbox_ts/src/walrus-cli.ts upload \"/app/data/${FILENAME}.enc\"
+        ")
+        
+        BLOB_ID=$(echo "$RESULT" | jq -r '.blobId' 2>/dev/null || echo "")
+        
+        if [ -n "$BLOB_ID" ] && [ "$BLOB_ID" != "null" ]; then
+            print_success "Encrypted and uploaded successfully!"
+            echo ""
+            echo "📦 Encrypted Blob ID: $BLOB_ID"
+            echo ""
+            print_info "Share this Blob ID publicly - only the private key owner can decrypt!"
+            
+            # Cleanup encrypted file
+            rm -f "$DATA_DIR/${FILENAME}.enc"
+        else
+            print_error "Upload failed"
+            echo "$RESULT"
+            exit 1
+        fi
+        ;;
+    
+    ecc-decrypt)
+        check_container
+        if [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ]; then
+            print_error "Usage: ./mothrbox ecc-decrypt <blob-id> <output-file> <private-key>"
+            exit 1
+        fi
+        
+        BLOB_ID="$2"
+        OUTPUT_FILE="$3"
+        PRIVATE_KEY="$4"
+        
+        if [ ! -f "$PRIVATE_KEY" ]; then
+            print_error "Private key not found: $PRIVATE_KEY"
+            exit 1
+        fi
+        
+        print_header
+        print_info "Downloading and decrypting with ECC..."
+        
+        OUTPUT_FILENAME=$(basename "$OUTPUT_FILE")
+        PRIVKEY_FILENAME=$(basename "$PRIVATE_KEY")
+        cp "$PRIVATE_KEY" "$DATA_DIR/$PRIVKEY_FILENAME"
+        
+        # Download from Walrus
+        print_info "Downloading from Walrus..."
+        docker exec "$CONTAINER_NAME" bash -c "
+            deno run -A --env-file=mothrbox_ts/.env mothrbox_ts/src/walrus-cli.ts download \"$BLOB_ID\" \"/app/data/${OUTPUT_FILENAME}.enc\"
+        " > /dev/null
+        
+        if [ ! -f "$DATA_DIR/${OUTPUT_FILENAME}.enc" ]; then
+            print_error "Download failed"
+            exit 1
+        fi
+        
+        FILE_SIZE=$(stat -f%z "$DATA_DIR/${OUTPUT_FILENAME}.enc" 2>/dev/null || stat -c%s "$DATA_DIR/${OUTPUT_FILENAME}.enc")
+        print_success "Downloaded $FILE_SIZE bytes"
+        
+        # Decrypt
+        docker exec "$CONTAINER_NAME" bash -c "
+            cd /app/mothrbox_rs && \
+            cargo run --quiet --release -- ecc decrypt \"/app/data/${OUTPUT_FILENAME}.enc\" \"/app/data/$OUTPUT_FILENAME\" \"/app/data/$PRIVKEY_FILENAME\"
+        "
+        
+        if [ -f "$DATA_DIR/$OUTPUT_FILENAME" ]; then
+            print_success "Decrypted successfully"
+            print_success "Saved to: data/$OUTPUT_FILENAME"
+            
+            # Cleanup encrypted file
+            rm -f "$DATA_DIR/${OUTPUT_FILENAME}.enc"
+        else
+            print_error "Decryption failed"
+            exit 1
+        fi
+        ;;
+    
+    # ==========================================
+    # ADVANCED / DIRECT CLI ACCESS
+    # ==========================================
+    
+    cli)
+        check_container
+        if [ -z "$2" ]; then
+            print_error "Usage: ./mothrbox cli <command> [args...]"
+            echo ""
+            echo "Examples:"
+            echo "  ./mothrbox cli aes encrypt /data/file.txt /data/file.enc password"
+            echo "  ./mothrbox cli chacha decrypt /data/file.enc /data/file.txt password"
+            echo "  ./mothrbox cli ecc keygen /data/private.key /data/public.key"
+            exit 1
+        fi
+        
+        shift # Remove 'cli' from arguments
+        docker exec -it "$CONTAINER_NAME" bash -c "cd /app/mothrbox_rs && cargo run --release -- $*"
+        ;;
+    
+    help|--help|-h)
+        print_header
+        echo "SYSTEM COMMANDS:"
+        echo "  start              Start MothrBox system"
+        echo "  stop               Stop MothrBox system"
+        echo "  restart            Restart MothrBox system"
+        echo "  status             Check system status"
+        echo "  logs               View system logs"
+        echo "  test               Run system tests"
+        echo "  rebuild            Rebuild Docker images"
+        echo "  clean              Clean up everything"
+        echo ""
+        echo "AES-256-GCM COMMANDS (Default, Hardware-Accelerated):"
+        echo "  encrypt <file> <password>"
+        echo "                     Encrypt with AES and upload to Walrus"
+        echo "  decrypt <blob-id> <output> <password>"
+        echo "                     Download from Walrus and decrypt with AES"
+        echo ""
+        echo "CHACHA20-POLY1305 COMMANDS (Mobile-Friendly):"
+        echo "  chacha-encrypt <file> <password>"
+        echo "                     Encrypt with ChaCha20 and upload to Walrus"
+        echo "  chacha-decrypt <blob-id> <output> <password>"
+        echo "                     Download from Walrus and decrypt with ChaCha20"
+        echo ""
+        echo "ECC COMMANDS (Public Key Cryptography):"
+        echo "  keygen             Generate ECC key pair (private.key + public.key)"
+        echo "  ecc-encrypt <file> <recipient-public-key>"
+        echo "                     Encrypt with ECC and upload to Walrus"
+        echo "  ecc-decrypt <blob-id> <output> <private-key>"
+        echo "                     Download from Walrus and decrypt with ECC"
+        echo ""
+        echo "ADVANCED:"
+        echo "  cli <command>      Run any CLI command directly"
+        echo ""
+        echo "Examples:"
+        echo "  ./mothrbox encrypt secret.txt MyPass123"
+        echo "  ./mothrbox chacha-encrypt video.mp4 MobilePass"
+        echo "  ./mothrbox keygen"
+        echo "  ./mothrbox ecc-encrypt doc.pdf data/recipient_public.key"
+        echo ""
+        ;;
+    
+    *)
+        print_error "Unknown command: $1"
+        echo "Run './mothrbox help' for usage information"
+        exit 1
+        ;;
+esac
