@@ -76,12 +76,12 @@ export async function calculateWalsForUpload(
   const costs = await walrusClient.storageCost(fileSizeBytes, epochs);
 
   // 1 WAL = 10^9 MIST
-  const MIST_PER_WAL = BigInt(1_000_000_000);
+  const MIST_PER_WAL = 1_000_000_000;
 
   return {
     storageCost: costs.storageCost,
     writeCost: costs.writeCost,
     totalCost: costs.totalCost,
-    totalCostInWals: Number(costs.totalCost) / Number(MIST_PER_WAL),
+    totalCostInWals: Number(costs.totalCost) / MIST_PER_WAL,
   };
 }

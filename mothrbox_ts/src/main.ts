@@ -10,6 +10,7 @@ app.get("/", (c) => {
 // Calculate WALs needed for file upload
 app.get("/storage-cost", async (c) => {
   const sizeParam = c.req.query("size");
+  const epochsParam = c.req.query("epochs");
 
   if (!sizeParam) {
     return c.json(
@@ -18,16 +19,22 @@ app.get("/storage-cost", async (c) => {
     );
   }
 
-  const fileSizeBytes = parseInt(sizeParam, 10);
+  const fileSizeBytes = Number(sizeParam);
+  const epochs = epochsParam ? Number(epochsParam) : 3;
 
   if (isNaN(fileSizeBytes) || fileSizeBytes <= 0) {
     return c.json({ error: "size must be a positive number" }, 400);
   }
 
-  const costs = await calculateWalsForUpload(fileSizeBytes);
+  if (isNaN(epochs) || epochs <= 0 || !Number.isInteger(epochs)) {
+    return c.json({ error: "epochs must be a positive integer" }, 400);
+  }
+
+  const costs = await calculateWalsForUpload(fileSizeBytes, epochs);
 
   return c.json({
     fileSizeBytes,
+    epochs,
     storageCost: costs.storageCost.toString(),
     writeCost: costs.writeCost.toString(),
     totalCost: costs.totalCost.toString(),
@@ -35,4 +42,5 @@ app.get("/storage-cost", async (c) => {
   });
 });
 
-Deno.serve({ port: 3000 }, app.fetch);
+const port = Deno.env.get("PORT") ?? 3000;
+Deno.serve({ port }, app.fetch);
