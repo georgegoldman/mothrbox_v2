@@ -1,0 +1,70 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Mothrbox Client "TEE"</title>
+  </head>
+  <body>
+    <h1>Mothrbox Local Encryption</h1>
+
+    <input type="file" id="fileInput" />
+    <input type="password" id="password" placeholder="Encryption Password" />
+
+    <button id="encryptBtn">Encrypt & Prepare for Walrus</button>
+
+    <div id="status"></div>
+
+    <script type="module">
+      // FIX 2: Changed path to "../pkg" because this file is inside "www/"
+      // but "pkg/" is one level up.
+      import init, { encrypt_blob } from "../pkg/mothrbox_wasm.js";
+
+      async function processFile() {
+        const status = document.getElementById("status");
+        const fileInput = document.getElementById("fileInput");
+        const password = document.getElementById("password").value;
+        const file = fileInput.files[0];
+
+        if (!file || !password) {
+          alert("Please select a file and password");
+          return;
+        }
+
+        status.innerText = "Initializing WASM Black Box...";
+
+        // 1. Boot the Black Box
+        await init();
+
+        status.innerText = "Reading file into memory...";
+        const arrayBuffer = await file.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+
+        status.innerText = "Encrypting inside WASM (Black Box)...";
+
+        try {
+          const result = encrypt_blob(uint8Array, password);
+
+          const encryptedBytes = result.get_data();
+          const nonce = result.get_nonce();
+
+          status.innerText = `Success! Encrypted ${encryptedBytes.length} bytes.`;
+          console.log("Nonce:", nonce);
+
+          uploadToWalrus(encryptedBytes);
+        } catch (e) {
+          console.error(e);
+          status.innerText = "Encryption Failed: " + e;
+        }
+      }
+
+      function uploadToWalrus(data) {
+        console.log("Simulating upload to Walrus...", data);
+      }
+
+      // FIX 3: This listener now works because the button has the correct ID
+      document
+        .getElementById("encryptBtn")
+        .addEventListener("click", processFile);
+    </script>
+  </body>
+</html>
