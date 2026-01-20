@@ -44,10 +44,10 @@ tempfile = "3.8"
 
 # Library configuration (for Nautilus integration)
 [lib]
-name = "mothrbox_crypto"
+name = "mothrbox_engine"
 path = "src/lib.rs"
 
 # Binary configuration
 [[bin]]
-name = "mothrbox-cli"   
+name = "mothrbox-cli"
 path = "src/main.rs"

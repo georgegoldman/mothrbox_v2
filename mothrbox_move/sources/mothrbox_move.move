@@ -39,6 +39,6 @@ public fun seal_access(
     _nft: &MothrboxNFT,
     _ctx: &TxContext
 ) {
-    // Ownership verification happens automatically by the Move VM
+    // Ownership verification happens automatically by the Sui Move VM
     // because the user must pass the &MothrboxNFT reference.
 }

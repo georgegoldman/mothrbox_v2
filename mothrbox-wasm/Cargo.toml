@@ -1,0 +1,42 @@
+[package]
+name = "mothrbox-wasm"
+version = "0.1.0"
+authors = ["George-Goldman Onyedikachi John <georgegoldmanjohn.o@gmail.com>"]
+description = "A WebAssembly library for encrypting and decrypting data using elliptic curve, Advanced Encryption Standard (AES) and ChaCha20-Poly1305 on the user client side which is stored on Walrus and the key is sealed by the Sui blockchain."
+license = ""
+repository = "https://github.com/georgegoldman/mothrbox_v2"
+edition = "2024"
+
+[lib]
+# "cdylib" is for the .wasm file.
+# "rlib" allows you to run `cargo test` inside this folder.
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+mothrbox_rs = { path = "../mothrbox_rs" }
+wasm-bindgen = "0.2"
+
+# CRITICAL FOR CRYPTO:
+# You must enable the 'js' feature for getrandom, or your crypto code will panic
+# at runtime because it won't know how to generate random numbers in the browser.
+getrandom = { version = "0.2", features = ["js"] }
+
+# Recommended for Console Logging (Optional but very helpful for debugging)
+console_error_panic_hook = "0.1"
+
+# --- OPTIMIZATIONS FOR WASM SIZE ---
+[profile.release]
+# Tell Rust to optimize for small code size ('z') or aggressive size ('s')
+opt-level = "s"
+# Strip debug symbols to reduce file size
+strip = true
+# Enable Link Time Optimization (slower build, smaller binary)
+lto = true
+# Abort on panic instead of unwinding (saves space)
+panic = "abort"
+# Optimize code generation units for size
+codegen-units = 1
+
+[package.metadata.wasm-pack.profile.release]
+# This passes the flag to wasm-opt to allow the faster memory operations
+wasm-opt = ["-O", "--enable-bulk-memory"]
