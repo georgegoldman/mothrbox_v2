@@ -1,7 +1,11 @@
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { calculateWalsForUpload } from "./walrus-client.ts";
 
 const app = new Hono();
+
+// Enable CORS for mothrbox.vercel.app only
+app.use("*", cors({ origin: "https://mothrbox.vercel.app" }));
 
 app.get("/", (c) => {
   return c.json({ message: "Mothrbox Walrus API" });
@@ -9,13 +13,13 @@ app.get("/", (c) => {
 
 // Calculate WALs needed for file upload
 app.get("/storage-cost", async (c) => {
-  const sizeParam = c.req.query("size");
+  const sizeParam = c.req.query("fileSize");
   const epochsParam = c.req.query("epochs");
 
   if (!sizeParam) {
     return c.json(
-      { error: "size query parameter is required (in bytes)" },
-      400
+      { error: "fileSize query parameter is required (in bytes)" },
+      400,
     );
   }
 
@@ -35,12 +39,11 @@ app.get("/storage-cost", async (c) => {
   return c.json({
     fileSizeBytes,
     epochs,
-    storageCost: costs.storageCost.toString(),
-    writeCost: costs.writeCost.toString(),
     totalCost: costs.totalCost.toString(),
-    totalCostInWals: costs.totalCostInWals,
+    totalCostInSui: costs.totalCostInSui,
+    totalCostInUsd: costs.totalCostInUsd,
   });
 });
 
-const port = Deno.env.get("PORT") ?? 3000;
-Deno.serve({ port }, app.fetch);
+const port = Number(Deno.env.get("PORT") ?? 3000);
+Deno.serve({ port }, (req) => app.fetch(req));
