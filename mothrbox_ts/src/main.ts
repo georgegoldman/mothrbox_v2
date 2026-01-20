@@ -39,6 +39,8 @@ app.get("/storage-cost", async (c) => {
   return c.json({
     fileSizeBytes,
     epochs,
+    storageCost: costs.storageCost.toString(),
+    writeCost: costs.writeCost.toString(),
     totalCost: costs.totalCost.toString(),
     totalCostInSui: costs.totalCostInSui,
     totalCostInUsd: costs.totalCostInUsd,

@@ -96,6 +96,8 @@ export async function calculateWalsForUpload(
   const totalCostInUsd = totalCostInSui * suiPriceUsd;
 
   return {
+    storageCost: costs.storageCost,
+    writeCost: costs.writeCost,
     totalCost: costs.totalCost,
     totalCostInSui,
     totalCostInUsd,
