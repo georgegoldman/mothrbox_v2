@@ -67,20 +67,37 @@ export async function readFromWalus(blobId: string): Promise<Uint8Array> {
   return bytes;
 }
 
+// Fetch current SUI price in USD from CoinGecko
+async function getSuiPriceUsd(): Promise<number> {
+  try {
+    const response = await fetch(
+      "https://api.coingecko.com/api/v3/simple/price?ids=sui&vs_currencies=usd"
+    );
+    const data = await response.json();
+    return data.sui.usd;
+  } catch (error) {
+    console.warn("Failed to fetch SUI price, using fallback", error);
+    return 2.5; // Fallback price
+  }
+}
+
 // Calculate WALs needed to upload a file to Walrus
 export async function calculateWalsForUpload(
   fileSizeBytes: number,
-  epochs: number = 3,
+  epochs: number = 3
 ) {
   const costs = await walrusClient.storageCost(fileSizeBytes, epochs);
+  const suiPriceUsd = await getSuiPriceUsd();
 
-  // 1 WAL = 10^9 MIST
-  const MIST_PER_WAL = 1_000_000_000;
+  // 1 SUI = 10^9 MIST
+  const MIST_PER_SUI = 1_000_000_000;
+  
+  const totalCostInSui = Number(costs.totalCost) / MIST_PER_SUI;
+  const totalCostInUsd = totalCostInSui * suiPriceUsd;
 
   return {
-    storageCost: costs.storageCost,
-    writeCost: costs.writeCost,
     totalCost: costs.totalCost,
-    totalCostInWals: Number(costs.totalCost) / MIST_PER_WAL,
+    totalCostInSui,
+    totalCostInUsd,
   };
 }
