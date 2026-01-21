@@ -1,38 +1,78 @@
+// main.ts
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { calculateWalsForUpload } from "./walrus-client.ts";
+import {
+  calculateWalsForUpload,
+  uploadToWalrus,
+  mintBlobReceipt,
+} from "./walrus-client.ts";
 
 const app = new Hono();
 
-// Enable CORS for mothrbox.vercel.app only
+// Enable CORS
 app.use("*", cors({ origin: "https://mothrbox.vercel.app" }));
 
-app.get("/", (c) => {
-  return c.json({ message: "Mothrbox Walrus API" });
+app.get("/", (c) => c.json({ message: "Mothrbox Walrus API Active" }));
+
+// --- NEW UPLOAD ROUTE ---
+app.post("/upload", async (c) => {
+  try {
+    // 1. Parse Multipart Form Data
+    const body = await c.req.parseBody();
+    const file = body["file"];
+    const userAddress = body["userAddress"] as string;
+
+    // Validate Input
+    if (!file || !(file instanceof File)) {
+      return c.json({ error: "Missing 'file' field or invalid file" }, 400);
+    }
+    if (!userAddress) {
+      return c.json({ error: "Missing 'userAddress' field" }, 400);
+    }
+
+    console.log(`Processing upload: ${file.name} (${file.size} bytes)`);
+
+    // 2. Convert File to Uint8Array for Walrus SDK
+    const arrayBuffer = await file.arrayBuffer();
+    const fileBytes = new Uint8Array(arrayBuffer);
+
+    // 3. Upload to Walrus (Backend pays storage)
+    const blobId = await uploadToWalrus(fileBytes, file.name);
+    console.log(`✅ Uploaded to Walrus. Blob ID: ${blobId}`);
+
+    // 4. Mint Receipt NFT on Sui (Backend pays gas)
+    //    We pass the mime type (e.g. "image/png") so the receipt has metadata
+    const txDigest = await mintBlobReceipt(blobId, file.type, userAddress);
+    console.log(`✅ Minted Receipt. Digest: ${txDigest}`);
+
+    // 5. Return Success
+    return c.json({
+      success: true,
+      blobId,
+      txDigest,
+      message: "File stored securely and ownership receipt sent to wallet.",
+    });
+  } catch (err: any) {
+    console.error("Upload failed:", err);
+    return c.json(
+      {
+        success: false,
+        error: err.message || "Internal Server Error",
+      },
+      500,
+    );
+  }
 });
 
-// Calculate WALs needed for file upload
+// ... (Keep your existing /storage-cost route here) ...
 app.get("/storage-cost", async (c) => {
   const sizeParam = c.req.query("fileSize");
   const epochsParam = c.req.query("epochs");
 
-  if (!sizeParam) {
-    return c.json(
-      { error: "fileSize query parameter is required (in bytes)" },
-      400,
-    );
-  }
+  if (!sizeParam) return c.json({ error: "fileSize required" }, 400);
 
   const fileSizeBytes = Number(sizeParam);
   const epochs = epochsParam ? Number(epochsParam) : 3;
-
-  if (isNaN(fileSizeBytes) || fileSizeBytes <= 0) {
-    return c.json({ error: "size must be a positive number" }, 400);
-  }
-
-  if (isNaN(epochs) || epochs <= 0 || !Number.isInteger(epochs)) {
-    return c.json({ error: "epochs must be a positive integer" }, 400);
-  }
 
   const costs = await calculateWalsForUpload(fileSizeBytes, epochs);
 
